@@ -7,7 +7,7 @@ namespace Http {
 
 Connection::Connection(
     boost::asio::ip::tcp::socket socket,
-    std::function<RequestHandler(const std::string&, const std::string&)> handlerLookup,
+    HandlerLookup handlerLookup,
     MiddlewareStack& middlewareStack,
     std::function<void()> cleanupCallback
 ) : socket_(std::move(socket)),
@@ -96,7 +96,7 @@ void Connection::processRequest() {
 
         // Execute middleware stack
         middlewareStack_.run(req_, res_, [this]() {
-            RequestHandler handler = handlerLookup_(req_.method, req_.path);
+            RequestHandler handler = handlerLookup_(req_.method, req_.path, req_);
             if (handler) {
                 handler(req_, res_);
             } else {
@@ -205,7 +205,6 @@ void Connection::resetTimeout() {
 void Connection::handleChunkedBody() {
     sendError(501); // 501 Not Implemented
 }
-
 
 } // namespace Http
 } // namespace Aether

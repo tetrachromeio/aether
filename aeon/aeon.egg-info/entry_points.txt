@@ -1,0 +1,2 @@
+[console_scripts]
+aeon = aeon.cli:main

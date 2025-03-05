@@ -1,0 +1,5 @@
+Metadata-Version: 2.2
+Name: aeon
+Version: 1.0.0
+Requires-Dist: toml
+Dynamic: requires-dist

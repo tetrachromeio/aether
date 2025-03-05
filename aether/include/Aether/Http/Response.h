@@ -32,6 +32,17 @@ struct Response {
         }
     }
 
+    void sendFile(const std::string& filePath) {
+        std::ifstream file(filePath, std::ios::binary);
+        if (file.is_open()) {
+            std::ostringstream buffer;
+            buffer << file.rdbuf();
+            send(buffer.str());
+        } else {
+            send("404 - File Not Found", 404);
+        }
+    }
+
     std::string body;
     int statusCode = 200; // Default to 200 OK
     std::unordered_map<std::string, std::string> headers;

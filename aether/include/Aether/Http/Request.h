@@ -11,8 +11,9 @@ struct Request {
     std::string method;  // GET/POST/PUT/DELETE
     std::string path;    // Requested URL path
     std::string version; // HTTP version (e.g., "HTTP/1.1")
-    std::unordered_map<std::string, std::string> headers;
-    std::string body;
+    std::unordered_map<std::string, std::string> headers; // Request headers
+    std::unordered_map<std::string, std::string> params; // URL parameters
+    std::string body; // Request body
 };
 
 } // namespace Http

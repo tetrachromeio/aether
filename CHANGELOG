@@ -1,0 +1,24 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [UNREALEASE]
+### Added
+- Wildcard path
+- send file
+- Initial alpha release of Aether.
+- Basic project structure and `aeon` CLI.
+
+
+---
+
+## Legend
+- **Added**: New features or functionality.
+- **Changed**: Changes to existing features.
+- **Deprecated**: Features to be removed in future releases.
+- **Removed**: Features removed in this version.
+- **Fixed**: Bug fixes.
+- **Security**: Security-related updates.

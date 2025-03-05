@@ -95,10 +95,10 @@ def build_project():
     ]
 
     # Verbose build info
-    # print("Building with command:")
-    # print(" ".join(build_command))
-    # print("\nInclude paths:")
-    # print("\n".join([f" - {i}" for i in build_command if i.startswith("-I")]))
+    print("Building with command:")
+    print(" ".join(build_command))
+    print("\nInclude paths:")
+    print("\n".join([f" - {i}" for i in build_command if i.startswith("-I")]))
     
     # Run build
     try:

@@ -6,12 +6,14 @@
 #include "Aether/Http/Request.h"
 #include "Aether/Http/Response.h"
 #include "Aether/Http/Middleware.h"
+#include "Aether/Http/RoutePattern.h"
 #include <boost/asio.hpp>
 #include <functional>
 #include <unordered_map>
 #include <mutex>
 #include <atomic>
 #include <string>
+#include <vector>
 
 namespace Aether {
 namespace Http {
@@ -40,22 +42,27 @@ public:
     void views(const std::string& folder);
 
 private:
+    struct Route {
+        RoutePattern pattern;
+        RequestHandler handler;
+    };
+
     void startAccept();
     void handleNewConnection(
         const boost::system::error_code& error,
         std::shared_ptr<boost::asio::ip::tcp::socket> socket
     );
 
-    RequestHandler findHandler(const std::string& method, const std::string& path);
+    RequestHandler findHandler(const std::string& method, const std::string& path, Request& req);
 
     EventLoop eventLoop_;
     boost::asio::ip::tcp::acceptor acceptor_;
     
     std::mutex handlersMutex_;
-    std::unordered_map<std::string, RequestHandler> getHandlers_;
-    std::unordered_map<std::string, RequestHandler> postHandlers_;
-    std::unordered_map<std::string, RequestHandler> putHandlers_;
-    std::unordered_map<std::string, RequestHandler> deleteHandlers_;
+    std::vector<Route> getHandlers_;
+    std::vector<Route> postHandlers_;
+    std::vector<Route> putHandlers_;
+    std::vector<Route> deleteHandlers_;
 
     MiddlewareStack middlewareStack_;
     std::atomic<int> activeConnections_{0};

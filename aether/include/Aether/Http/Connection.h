@@ -1,24 +1,25 @@
+// Connection.h
 #ifndef AETHER_HTTP_CONNECTION_H
 #define AETHER_HTTP_CONNECTION_H
 
 #include "Aether/Http/Request.h"
 #include "Aether/Http/Response.h"
 #include "Aether/Http/Middleware.h"
-#include "Aether/Http/HttpParser.h"
 #include <boost/asio.hpp>
-#include <functional>
 #include <memory>
+#include <functional>
 
 namespace Aether {
 namespace Http {
 
-using RequestHandler = std::function<void(Request&, Response&)>;
-
 class Connection : public std::enable_shared_from_this<Connection> {
 public:
+    using RequestHandler = std::function<void(Request&, Response&)>;
+    using HandlerLookup = std::function<RequestHandler(const std::string&, const std::string&, Request&)>;
+
     Connection(
         boost::asio::ip::tcp::socket socket,
-        std::function<RequestHandler(const std::string&, const std::string&)> handlerLookup,
+        HandlerLookup handlerLookup,
         MiddlewareStack& middlewareStack,
         std::function<void()> cleanupCallback
     );
@@ -26,31 +27,29 @@ public:
     void start();
 
 private:
-    // Declare all private methods used in Connection.cpp
     void handleReadHeaders(const boost::system::error_code& error, size_t bytes_transferred);
     void handleContentLengthBody(size_t header_bytes);
-    void handleChunkedBody(); // Stub for future implementation
-    void handleNetworkError(const boost::system::error_code& error);
     void processRequest();
     void buildResponse();
     void sendResponse();
+    void handleNetworkError(const boost::system::error_code& error);
     void sendError(int statusCode);
     void resetTimeout();
+    void handleChunkedBody();
 
     boost::asio::ip::tcp::socket socket_;
     boost::asio::deadline_timer timeoutTimer_;
-    
+    HandlerLookup handlerLookup_;
+    MiddlewareStack& middlewareStack_;
+    std::function<void()> cleanupCallback_;
+
     std::string requestBuffer_;
     std::string responseData_;
     Request req_;
     Response res_;
-
-    std::function<RequestHandler(const std::string&, const std::string&)> handlerLookup_;
-    MiddlewareStack& middlewareStack_;
-    std::function<void()> cleanupCallback_;
 };
 
 } // namespace Http
-} // namespace Chromate
+} // namespace Aether
 
-#endif // CHROMATE_HTTP_CONNECTION_H
+#endif // Aether_HTTP_CONNECTION_H

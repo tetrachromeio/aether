@@ -21,22 +21,22 @@ void Server::use(Middleware middleware) {
 
 void Server::get(const std::string& path, RequestHandler handler) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
-    getHandlers_[path] = handler;
+    getHandlers_.push_back({RoutePattern(path), handler});
 }
 
 void Server::post(const std::string& path, RequestHandler handler) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
-    postHandlers_[path] = handler;
+    postHandlers_.push_back({RoutePattern(path), handler});
 }
 
 void Server::put(const std::string& path, RequestHandler handler) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
-    putHandlers_[path] = handler;
+    putHandlers_.push_back({RoutePattern(path), handler});
 }
 
 void Server::del(const std::string& path, RequestHandler handler) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
-    deleteHandlers_[path] = handler;
+    deleteHandlers_.push_back({RoutePattern(path), handler});
 }
 
 void Server::views(const std::string& folder) {
@@ -57,18 +57,23 @@ void Server::run(int port) {
     }
 }
 
-RequestHandler Server::findHandler(const std::string& method, const std::string& path) {
+RequestHandler Server::findHandler(const std::string& method, const std::string& path, Request& req) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
     
-    const auto& map = [&]() -> const auto& {
+    const auto& routes = [&]() -> const std::vector<Route>& {
         if (method == "GET") return getHandlers_;
         if (method == "POST") return postHandlers_;
         if (method == "PUT") return putHandlers_;
         return deleteHandlers_;
     }();
-    
-    auto it = map.find(path);
-    return (it != map.end()) ? it->second : nullptr;
+
+    for (const auto& route : routes) {
+        req.params.clear();
+        if (route.pattern.match(path, req.params)) {
+            return route.handler;
+        }
+    }
+    return nullptr;
 }
 
 void Server::startAccept() {
@@ -91,7 +96,9 @@ void Server::handleNewConnection(
         ++activeConnections_;
         std::make_shared<Connection>(
             std::move(*socket),
-            [this](auto&& method, auto&& path) { return findHandler(method, path); },
+            [this](auto&& method, auto&& path, auto&& req) { 
+                return findHandler(method, path, req); 
+            },
             middlewareStack_,
             [this] { --activeConnections_; }
         )->start();
