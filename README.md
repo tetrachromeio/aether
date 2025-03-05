@@ -1,3 +1,4 @@
+![Aether Logo](/figures/Aether_logo.png)  
 # Aether - High-Performance HTTP Server Framework for C++ (v0.0.1 Alpha)
 
 ![Aether Performance](https://img.shields.io/badge/Performance-58k%20req%2Fs-brightgreen)  
