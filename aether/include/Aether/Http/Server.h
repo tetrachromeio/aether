@@ -29,6 +29,7 @@ public:
 
     // Add io_context accessor
     boost::asio::io_context& ioContext() { return eventLoop_.getIoContext(); }
+    
 
     void get(const std::string& path, RequestHandler handler);
     void post(const std::string& path, RequestHandler handler);

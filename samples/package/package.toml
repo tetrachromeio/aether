@@ -1,0 +1,12 @@
+[package]
+name = "Websocket"
+version = "1.0.0"
+description = "A WebSocket library for Aeon"
+authors = ["Author Name <author.email@example.com>"]
+license = "MIT"
+git = 
+
+[build]
+sources = ["src/websocket.cpp"]
+includes = ["include"]
+dependencies = ["Boost@1.75.0"]

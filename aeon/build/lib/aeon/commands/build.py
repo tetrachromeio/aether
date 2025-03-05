@@ -1,6 +1,7 @@
 import os
 import subprocess
 import toml
+import time
 from pathlib import Path
 from aeon.utils.config_utils import read_global_config
 
@@ -23,30 +24,36 @@ def find_package_sources(package_dir):
     return sources, includes
 
 def build_project():
+    start_time = time.time()  # Start timing the build process
+    
     project_dir = os.getcwd()
     src_dir = os.path.join(project_dir, "src")
     build_dir = os.path.join(project_dir, "build")
-    packages_dir = os.path.join(project_dir, "aeon-packages")
+    packages_dir = os.path.join(project_dir, "aeon_modules")
     
+    print("⚙️  Preparing build environment...")
     os.makedirs(build_dir, exist_ok=True)
 
     # Read project configuration
     try:
+        print("📄 Reading aeon.toml...")
         with open(os.path.join(project_dir, "aeon.toml")) as f:
             config = toml.load(f)
     except FileNotFoundError:
-        print("Error: aeon.toml not found!")
+        print("❌ Error: aeon.toml not found!")
         return
 
     # Read global aeon config
+    print("🌍 Reading global aeon configuration...")
     global_config = read_global_config()
     if not global_config or "aeon_path" not in global_config:
-        print("Error: aeon library not linked. Use 'aeon link <path_to_aeon>' first.")
+        print("❌ Error: aeon library not linked. Use 'aeon link <path_to_aeon>' first.")
         return
 
     aeon_path = global_config["aeon_path"]
     
     # Collect base aeon sources
+    print("🔍 Collecting aeon core sources...")
     aeon_src_files = [
         str(Path(aeon_path) / "src/Core/EventLoop.cpp"),
         str(Path(aeon_path) / "src/Core/Print.cpp"),
@@ -59,28 +66,36 @@ def build_project():
         str(Path(aeon_path) / "src/Middleware/ServeStatic.cpp"),
     ]
     
-    # Collect package sources with aeon-specific structure
+    # Collect package sources and includes
     package_includes = []
     package_sources = []
     
-    if "packages" in config.get("project", {}):
-        for pkg_name, pkg_version in config["project"]["packages"].items():
+    if "dependencies" in config:
+        print("📦 Processing dependencies...")
+        for pkg_name, pkg_version in config["dependencies"].items():
             pkg_dir = Path(packages_dir) / pkg_name / pkg_version
             if not pkg_dir.exists():
-                print(f"Error: Missing package {pkg_name}@{pkg_version}")
+                print(f"❌ Error: Missing package {pkg_name}@{pkg_version}")
                 print(f"Expected path: {pkg_dir}")
                 return
                 
-            pkg_src, pkg_inc = find_package_sources(pkg_dir)
-            if not pkg_inc:
-                print(f"Error: Package {pkg_name} missing aeon include structure")
-                print(f"Expected path: {pkg_dir}/Include/aeon/<package_files>")
+            # Read package.toml
+            try:
+                with open(pkg_dir / "package.toml") as f:
+                    pkg_config = toml.load(f)
+            except FileNotFoundError:
+                print(f"❌ Error: package.toml not found for {pkg_name}@{pkg_version}")
                 return
-                
-            package_sources.extend(pkg_src)
-            package_includes.extend(pkg_inc)
+
+            # Add sources and includes
+            if "build" in pkg_config:
+                for src in pkg_config["build"].get("sources", []):
+                    package_sources.append(str(pkg_dir / src))
+                for inc in pkg_config["build"].get("includes", []):
+                    package_includes.append(f"-I{str(pkg_dir / inc)}")
 
     # Build command
+    print("🔨 Compiling project...")
     build_command = [
         "g++",
         "-std=c++17",
@@ -94,19 +109,18 @@ def build_project():
         "-pthread"
     ]
 
-    # Verbose build info
-    print("Building with command:")
-    print(" ".join(build_command))
-    print("\nInclude paths:")
-    print("\n".join([f" - {i}" for i in build_command if i.startswith("-I")]))
-    
     # Run build
     try:
+        print("🚀 Starting build process...")
         subprocess.run(build_command, check=True)
-        print("\n✅ Build successful! Execute with:")
-        print(f"   {Path(build_dir)/'main'}")
+        build_time = time.time() - start_time
+        print(f"\n✅ Build successful! (took {build_time:.2f} seconds)")
+        print("💡 Execute with:")
+        print("aeon run")
     except subprocess.CalledProcessError as e:
-        print(f"\n❌ Build failed with error code {e.returncode}")
-        print("Verify package structure:")
-        print("1. Package includes should be in: aeon-packages/<name>/<version>/Include/aeon/...")
-        print("2. Source files should be in: aeon-packages/<name>/<version>/Src/...")
+        build_time = time.time() - start_time
+        print(f"\n❌ Build failed with error code {e.returncode} (took {build_time:.2f} seconds)")
+        print("💡 Check the error messages above for more details.")
+
+if __name__ == "__main__":
+    build_project()

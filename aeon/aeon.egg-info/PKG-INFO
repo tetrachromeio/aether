@@ -1,5 +1,6 @@
 Metadata-Version: 2.2
 Name: aeon
-Version: 1.0.0
+Version: 0.0.1
 Requires-Dist: toml
+Requires-Dist: tqdm
 Dynamic: requires-dist
