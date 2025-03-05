@@ -1,4 +1,4 @@
-<div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+<div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-direction: column;">
   <img src="/figures/Aether_logo.png" alt="Aether Logo" style="width: 100px; height: auto;">
   <img src="/figures/Aether_txt.png" alt="Aether Text" style="width: 100px; height: auto;">
 </div>
