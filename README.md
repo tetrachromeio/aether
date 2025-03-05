@@ -1,4 +1,4 @@
-<img src="/figures/Aether_logo.png" alt="Aether Logo" style="width: 200px; height: auto; align-items: center;">">
+<img src="/figures/Aether_logo.png" alt="Aether Logo" style="width: 200px; height: auto; align-items: center;">
 <img src="/figures/Aether_txt.png" alt="Aether Logo" style="width: 200px; height: auto; align-items: center;">
 # Aether - High-Performance HTTP Server Framework for C++ (v0.0.1 Alpha)
 
