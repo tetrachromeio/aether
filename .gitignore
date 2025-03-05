@@ -1,1 +1,3 @@
 /aeon/.venv/
+.DS_Store
+.gitiignore
