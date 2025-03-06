@@ -36,6 +36,10 @@ private:
     void sendError(int statusCode);
     void resetTimeout();
     void handleChunkedBody();
+    void closeConnection(); // Declare closeConnection method
+    void send100Continue(); // Declare send100Continue method
+    void processChunkedBody(size_t bytes_transferred); // Declare processChunkedBody method
+    void handleRequestBody(); // Declare handleRequestBody method
 
     boost::asio::ip::tcp::socket socket_;
     boost::asio::deadline_timer timeoutTimer_;
@@ -47,6 +51,8 @@ private:
     std::string responseData_;
     Request req_;
     Response res_;
+
+    bool isClosed_; // Declare isClosed_ member variable
 };
 
 } // namespace Http

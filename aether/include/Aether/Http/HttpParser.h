@@ -17,11 +17,11 @@ public:
 private:
     // Internal parsing helpers
     static bool parseStartLine(const std::string& line, Request& req);
-    static void parseHeaders(const std::string& headerBlock, Request& req);
+    static bool parseHeaders(const std::string& headerBlock, Request& req); // Updated to return bool
     static void parseBody(const std::string& bodyContent, Request& req);
 };
 
 } // namespace Http
-} // namespace Chromate
+} // namespace Aether
 
-#endif // CHROMATE_HTTP_PARSER_H
+#endif // AETHER_HTTP_PARSER_H

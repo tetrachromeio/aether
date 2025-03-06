@@ -9,5 +9,5 @@ setup(
             "aeon = aeon.cli:main",
         ],
     },
-    install_requires=["toml","tqdm"],
+    install_requires=["toml","tqdm","requests"],
 )

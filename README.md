@@ -2,7 +2,7 @@
 <img src="/figures/Aether_logo.png" alt="Aether Logo" style="width: 100px; height: auto;">
 <img src="/figures/Aether_txt.png" alt="Aether Text" style="width: 100px; height: auto;">
 
-# Aether - High-Performance HTTP Server Framework for C++ (v0.0.1 Alpha)
+# Aether - High-Performance HTTP Server Framework for C++
 
 ![Aether Performance](https://img.shields.io/badge/Performance-58k%20req%2Fs-brightgreen)  
 *Aether: Bridging Node.js simplicity with C++ raw power*

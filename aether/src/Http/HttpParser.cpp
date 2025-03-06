@@ -1,6 +1,7 @@
 #include "Aether/Http/HttpParser.h"
 #include <sstream>
 #include <algorithm>
+#include <vector>
 
 namespace Aether {
 namespace Http {
@@ -21,18 +22,33 @@ bool HttpParser::parseRequest(const std::string& rawRequest, Request& req) {
     if (headerEnd == std::string::npos) return false;
 
     // Parse headers and body from raw string
-    parseHeaders(rawRequest.substr(0, headerEnd), req);
+    if (!parseHeaders(rawRequest.substr(0, headerEnd), req)) {
+        return false;
+    }
     parseBody(rawRequest.substr(headerEnd + 4), req);
     return true;
 }
 
-void HttpParser::parseHeaders(const std::string& headerBlock, Request& req) {
+bool HttpParser::parseHeaders(const std::string& headerBlock, Request& req) {
     std::istringstream stream(headerBlock);
     std::string line;
     
     // First line is request line
     if (std::getline(stream, line)) {
-        parseStartLine(line, req);
+        if (!parseStartLine(line, req)) {
+            return false;
+        }
+    }
+
+    // Validate HTTP method
+    static const std::vector<std::string> validMethods = {"GET", "POST", "PUT", "DELETE"};
+    if (std::find(validMethods.begin(), validMethods.end(), req.method) == validMethods.end()) {
+        return false;
+    }
+
+    // Validate HTTP version
+    if (req.version != "HTTP/1.0" && req.version != "HTTP/1.1") {
+        return false;
     }
 
     // Process headers
@@ -46,6 +62,8 @@ void HttpParser::parseHeaders(const std::string& headerBlock, Request& req) {
             req.headers[key] = value;
         }
     }
+
+    return true;
 }
 
 void HttpParser::parseBody(const std::string& bodyContent, Request& req) {

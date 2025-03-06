@@ -1,3 +1,4 @@
+// File: Aether/Http/RoutePattern.cpp
 #include "Aether/Http/RoutePattern.h"
 #include <sstream>
 #include <stdexcept>
@@ -5,6 +6,8 @@
 
 namespace Aether {
 namespace Http {
+
+// RoutePattern Implementation
 
 RoutePattern::RoutePattern(const std::string& pattern) {
     parsePattern(pattern);
@@ -74,6 +77,43 @@ bool RoutePattern::match(const std::string& path,
         ++pi;
     }
     return pi == pathSegments.size();
+}
+
+// RouteGroup Implementation
+
+RouteGroup::RouteGroup(const std::string& prefix) : prefix_(prefix) {
+    // Ensure the prefix starts with a '/' and does not end with one
+    if (!prefix_.empty() && prefix_[0] != '/') {
+        prefix_ = "/" + prefix_;
+    }
+    if (!prefix_.empty() && prefix_.back() == '/') {
+        prefix_.pop_back();
+    }
+}
+
+void RouteGroup::addRoute(const std::string& pattern, std::shared_ptr<RoutePattern> route) {
+    // Combine the group prefix with the route pattern
+    std::string fullPattern = prefix_ + pattern;
+    routes_.emplace_back(fullPattern, route);
+}
+
+bool RouteGroup::match(const std::string& path, std::unordered_map<std::string, std::string>& params) const {
+    // Check if the path starts with the group prefix
+    if (path.find(prefix_) != 0) {
+        return false;
+    }
+
+    // Remove the prefix from the path
+    std::string subPath = path.substr(prefix_.length());
+
+    // Match the subPath against the routes in the group
+    for (const auto& [pattern, route] : routes_) {
+        if (route->match(subPath, params)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace Http

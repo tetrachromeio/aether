@@ -1,0 +1,12 @@
+HTTP/1.1 Compliance Test Results:
+========================================
+Header Parsing: PASS - Headers parsed correctly
+Status Codes: PASS - Correct status code returned
+Chunked Transfer Encoding: PASS - Chunked transfer encoding supported
+Keep-Alive: PASS - Keep-alive supported
+Content-Length: PASS - Content-Length header correct
+Host Header: FAIL - Host header not required
+Expect: 100-continue: FAIL - Remote end closed connection without response
+Malformed Requests: PASS - Server handles malformed requests gracefully
+Connection Timeout: FAIL - Server did not close idle connection
+========================================

@@ -9,6 +9,7 @@ aeon.egg-info/entry_points.txt
 aeon.egg-info/requires.txt
 aeon.egg-info/top_level.txt
 aeon/commands/__init__.py
+aeon/commands/auth.py
 aeon/commands/build.py
 aeon/commands/link.py
 aeon/commands/new.py

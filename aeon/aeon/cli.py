@@ -2,7 +2,7 @@ import argparse
 from aeon.commands.new import new_project
 from aeon.commands.build import build_project
 from aeon.commands.run import run_project
-from aeon.commands.link import link_aeon  # Add this import
+from aeon.commands.link import link_aeon
 
 def main():
     parser = argparse.ArgumentParser(description="aeon Package Manager")
@@ -22,6 +22,7 @@ def main():
     link_parser = subparsers.add_parser("link", help="Link the aeon library")
     link_parser.add_argument("aeon_path", help="Path to the aeon library")
 
+
     args = parser.parse_args()
 
     if args.command == "new":
@@ -30,7 +31,7 @@ def main():
         build_project()
     elif args.command == "run":
         run_project()
-    elif args.command == "link":  # Handle the link command
+    elif args.command == "link":
         link_aeon(args.aeon_path)
     else:
         parser.print_help()
