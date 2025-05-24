@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Debug Info</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #f8f8f8;
+      color: #333;
+      padding: 2rem;
+    }
+    h1 {
+      color: #c00;
+    }
+    .section {
+      margin-bottom: 2rem;
+      border: 1px solid #ddd;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .section h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 0.5rem;
+    }
+    .key-val {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+    }
+    .key-val span {
+      word-break: break-all;
+    }
+    pre {
+      background: #eee;
+      padding: 1rem;
+      overflow-x: auto;
+      border-radius: 4px;
+    }
+    code {
+      background: #eee;
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚨 Debug Page</h1>
+
+  <div class="section">
+    <h2>Request Info</h2>
+    <div class="key-val"><span><strong>URL:</strong></span> <span>{{ request_url }}</span></div>
+    <div class="key-val"><span><strong>Method:</strong></span> <span>{{ request_method }}</span></div>
+    <div class="key-val"><span><strong>IP:</strong></span> <span>{{ client_ip }}</span></div>
+    <div class="key-val"><span><strong>User-Agent:</strong></span> <span>{{ user_agent }}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Query Params</h2>
+    <pre>{{ query_params }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Form Data</h2>
+    <pre>{{ form_data }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Headers</h2>
+    <pre>{{ request_headers }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Session</h2>
+    <pre>{{ session_data }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Environment</h2>
+    <pre>{{ environment_vars }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Traceback</h2>
+    <pre>{{ traceback }}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Extra Context</h2>
+    <pre>{{ context_dump }}</pre>
+  </div>
+</body>
+</html>

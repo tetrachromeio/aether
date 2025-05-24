@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aether - Unconfigured</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #0e0e10;
+      color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 1rem;
+      text-align: center;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .logo img {
+      height: 60px;
+      object-fit: contain;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
+    }
+    p {
+      font-size: 1.1rem;
+      color: #aaaaaa;
+      max-width: 600px;
+    }
+    .code {
+      background-color: #1e1e20;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 2rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #00ff95;
+    }
+    .button {
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background-color: #00ff95;
+      color: #0e0e10;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .button:hover {
+      background-color: #00e085;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">
+    <img src="https://raw.githubusercontent.com/tetrachromeio/aether/refs/heads/main/figures/Aether_logo.png" alt="Aether Logo">
+    <img src="https://raw.githubusercontent.com/tetrachromeio/aether/refs/heads/main/figures/Aether_txt.png" alt="Aether Text">
+  </div>
+
+  <h1>Unconfigured Aether Server</h1>
+  <p>
+    This Aether instance is running but hasn't been configured with any routes or middleware yet.
+  </p>
+
+  <div class="code">
+    // No route matched this request<br>
+    res.status(404).send("No routes configured.")
+  </div>
+
+  <button class="button" onclick="location.href='https://github.com/tetrachromeio/aether'">
+    View Setup Guide
+  </button>
+
+</body>
+</html>

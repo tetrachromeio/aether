@@ -3,6 +3,8 @@ from aeon.commands.new import new_project
 from aeon.commands.build import build_project
 from aeon.commands.run import run_project
 from aeon.commands.link import link_aeon
+from aeon.commands.makemigrations import makemigrations
+from aeon.commands.migrate import migrate
 
 def main():
     parser = argparse.ArgumentParser(description="aeon Package Manager")
@@ -22,6 +24,13 @@ def main():
     link_parser = subparsers.add_parser("link", help="Link the aeon library")
     link_parser.add_argument("aeon_path", help="Path to the aeon library")
 
+    # aeon makemigrations
+    subparsers.add_parser("makemigrations", help="Create new migrations based on changes")
+
+    # aeon migrate
+    subparsers.add_parser("migrate", help="Apply migrations to the database")
+
+
 
     args = parser.parse_args()
 
@@ -33,6 +42,11 @@ def main():
         run_project()
     elif args.command == "link":
         link_aeon(args.aeon_path)
+    elif args.command == "makemigrations":
+        makemigrations()
+    elif args.command == "migrate":
+        migrate()
+    
     else:
         parser.print_help()
 

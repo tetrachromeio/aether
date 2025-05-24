@@ -3,7 +3,8 @@ from aeon.commands.new import new_project
 from aeon.commands.build import build_project
 from aeon.commands.run import run_project
 from aeon.commands.link import link_aeon
-from aeon.commands.auth import login_user, register_user  # Add these imports
+from aeon.commands.makemigrations import makemigrations
+from aeon.commands.migrate import migrate
 
 def main():
     parser = argparse.ArgumentParser(description="aeon Package Manager")
@@ -23,19 +24,13 @@ def main():
     link_parser = subparsers.add_parser("link", help="Link the aeon library")
     link_parser.add_argument("aeon_path", help="Path to the aeon library")
 
-    # aeon auth
-    auth_parser = subparsers.add_parser("auth", help="Authenticate with aeon")
-    auth_subparsers = auth_parser.add_subparsers(dest="auth_command", help="Auth commands")
-    
-    # aeon auth login
-    login_parser = auth_subparsers.add_parser("login", help="Login to aeon")
-    login_parser.add_argument("email", help="Your email")
-    login_parser.add_argument("password", help="Your password")
+    # aeon makemigrations
+    subparsers.add_parser("makemigrations", help="Create new migrations based on changes")
 
-    # aeon auth register
-    register_parser = auth_subparsers.add_parser("register", help="Register a new aeon account")
-    register_parser.add_argument("email", help="Your email")
-    register_parser.add_argument("password", help="Your password")
+    # aeon migrate
+    subparsers.add_parser("migrate", help="Apply migrations to the database")
+
+
 
     args = parser.parse_args()
 
@@ -47,13 +42,11 @@ def main():
         run_project()
     elif args.command == "link":
         link_aeon(args.aeon_path)
-    elif args.command == "auth":
-        if args.auth_command == "login":
-            login_user(args.email, args.password)
-        elif args.auth_command == "register":
-            register_user(args.email, args.password)
-        else:
-            auth_parser.print_help()
+    elif args.command == "makemigrations":
+        makemigrations()
+    elif args.command == "migrate":
+        migrate()
+    
     else:
         parser.print_help()
 

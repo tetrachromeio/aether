@@ -196,9 +196,10 @@ void Connection::processRequest() {
             if (handler) {
                 handler(req_, res_);
             } else {
-                res_.send("404 Not Found", 404);
+                res_.sendFile("/Users/mackenzieturner/Desktop/DESKTOP/Hydrogen/aether/aether/templates/index.html");
             }
         });
+
 
         buildResponse();
         sendResponse();
@@ -270,12 +271,27 @@ void Connection::handleNetworkError(const boost::system::error_code& error) {
 }
 
 void Connection::sendError(int statusCode) {
-    responseData_ = 
-        "HTTP/1.1 " + std::to_string(statusCode) + " " + 
-        HttpParser::statusText(statusCode) + "\r\n"
-        "Content-Length: 0\r\n"
-        "Connection: close\r\n\r\n";
-        
+    if (statusCode == 404) {
+        responseData_ =
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+    } else {
+        std::ifstream errorFile("/Users/mackenzieturner/Desktop/DESKTOP/Hydrogen/aether/aether/templates/error.html");
+        std::stringstream buffer;
+        buffer << errorFile.rdbuf();
+        std::string errorHtml = buffer.str();
+
+        std::ostringstream oss;
+        oss << "HTTP/1.1 " << statusCode << " " << HttpParser::statusText(statusCode) << "\r\n";
+        oss << "Content-Type: text/html\r\n";
+        oss << "Content-Length: " << errorHtml.size() << "\r\n";
+        oss << "Connection: close\r\n\r\n";
+        oss << errorHtml;
+
+        responseData_ = oss.str();
+    }
+
     boost::asio::async_write(
         socket_,
         boost::asio::buffer(responseData_),
@@ -284,6 +300,7 @@ void Connection::sendError(int statusCode) {
         }
     );
 }
+
 
 void Connection::resetTimeout() {
     timeoutTimer_.expires_from_now(boost::posix_time::seconds(30)); // 30-second timeout

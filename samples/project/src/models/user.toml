@@ -1,0 +1,20 @@
+[model]
+name = "User"
+table = "users"
+
+[fields.id]
+type = "int"
+primary_key = true
+
+[fields.username]
+type = "string"
+unique = true
+nullable = false
+
+[fields.email]
+type = "string"
+nullable = false
+
+[fields.created_at]
+type = "datetime"
+default = "now"

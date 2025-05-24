@@ -1,0 +1,54 @@
+{
+    "User": {
+        "id": {
+            "type": "int",
+            "primary_key": true
+        },
+        "username": {
+            "type": "string",
+            "unique": true,
+            "nullable": false
+        },
+        "email": {
+            "type": "string",
+            "nullable": false
+        },
+        "created_at": {
+            "type": "datetime",
+            "default": "now"
+        }
+    },
+    "Admin": {
+        "id": {
+            "type": "int",
+            "primary_key": true,
+            "auto_increment": true
+        },
+        "username": {
+            "type": "string",
+            "unique": true,
+            "nullable": false
+        },
+        "email": {
+            "type": "string",
+            "unique": true,
+            "nullable": false
+        },
+        "password_hash": {
+            "type": "string",
+            "nullable": false
+        },
+        "role": {
+            "type": "string",
+            "default": "user"
+        },
+        "active": {
+            "type": "bool",
+            "default": true
+        },
+        "created_at": {
+            "type": "datetime",
+            "default": "now"
+        }
+    }
+}
