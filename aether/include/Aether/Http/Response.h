@@ -16,8 +16,23 @@ struct Response {
         this->statusCode = statusCode;
     }
 
+    void sendJSON(const std::string& json, int statusCode = -1) {
+        setHeader("Content-Type", "application/json");
+        
+        // If no status code provided, use the current one
+        if (statusCode == -1) {
+            statusCode = this->statusCode;
+        }
+        
+        send(json, statusCode);
+    }
+
     void setHeader(const std::string& key, const std::string& value) {
         headers[key] = value;
+    }
+
+    void setStatus(int statusCode) {
+        this->statusCode = statusCode;
     }
 
     void render(const std::string& viewName) {

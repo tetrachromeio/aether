@@ -1,0 +1,28 @@
+[project]
+name = "my_project"
+version = "1.0.0"
+description = "A sample project using Aeon"
+authors = ["Your Name <your.email@example.com>"]
+
+
+[settings]
+admin = true
+debug = true
+
+
+
+[database]
+type = "sqlite"
+path = "db.sqlite"
+
+
+
+[dependencies]
+
+[systemDependencies]
+# System libraries to link against
+# Format: library_name = { package = "package_name", libs = ["lib1", "lib2"], includes = ["/path/to/includes"] }
+# Or simple format: library_name = ["lib1", "lib2"]
+openssl = { package = "openssl", libs = ["ssl", "crypto"], includes = ["/usr/local/opt/openssl/include"] }
+# boost = ["boost_system", "boost_filesystem"]
+# sqlite3 = ["sqlite3"]

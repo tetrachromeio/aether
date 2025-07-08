@@ -1,8 +1,8 @@
 # Aeon Package Manager
 
 **Modern Dependency Management for C++ Projects**  
-![Version](https://img.shields.io/badge/version-0.1.0_Alpha-blue) 
-![Status](https://img.shields.io/badge/status-Active_Development-brightgreen)
+![Version](https://img.shields.io/badge/version-0.5.0_Beta-blue) 
+![Status](https://img.shields.io/badge/status-Beta-orange)
 
 Aeon is a next-generation package manager designed specifically for C++ projects, combining familiar workflows from npm and cargo with C++'s unique requirements. Designed to work seamlessly with the Aether framework but usable with any C++ project.
 
@@ -24,8 +24,7 @@ aeon run
 - **Package linking** for local development
 - **Automatic rebuild** on source changes
 
-### Coming Soon (v0.2.0)
-- `aeon add <package>` - Add dependencies from registry
+### Coming Soon (v1.0.0)
 - Binary caching for frequent dependencies
 - Header-only package support
 - CI/CD integration templates
@@ -83,7 +82,7 @@ version = "0.1.0"
 description = "High-performance web server"
 
 [dependencies]
-websockets = "1.2.0"  # Coming in v0.2.0
+# Future feature - manual editing only for now
 ```
 
 ## 🔨 Build System
@@ -94,19 +93,16 @@ Aeon's smart builder:
 - Compiles with optimal flags for your platform
 - Supports mixed source/header-only packages
 
-## 📦 Package Management (Planned)
+## 📦 Package Management (Future Release)
 
 ```bash
-# Future workflow
-aeon add middleware@1.0.0  # Add from registry
-aeon add ./local-pkg       # Add local package
-aeon install               # Install all dependencies
+# Future workflow (coming in v1.0.0)
+aeon install               # Install all dependencies from aeon.toml
 ```
 
 ## 🤝 Contributing
 
 We welcome contributions! Current priorities:
-- `aeon add` command implementation
 - Binary package distribution support
 - Improved dependency resolution
 - Windows build support

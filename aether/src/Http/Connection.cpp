@@ -196,7 +196,8 @@ void Connection::processRequest() {
             if (handler) {
                 handler(req_, res_);
             } else {
-                res_.sendFile("/Users/mackenzieturner/Desktop/DESKTOP/Hydrogen/aether/aether/templates/index.html");
+                // Send 404 for unmatched routes
+                sendError(404);
             }
         });
 
@@ -238,7 +239,7 @@ void Connection::sendResponse() {
     boost::asio::async_write(
         socket_,
         boost::asio::buffer(responseData_),
-        [self = shared_from_this()](auto error, auto) {
+        [self = shared_from_this()](auto error, auto bytes_transferred) {
             if (error) {
                 self->handleNetworkError(error);
                 return;
@@ -274,13 +275,13 @@ void Connection::sendError(int statusCode) {
     if (statusCode == 404) {
         responseData_ =
             "HTTP/1.1 404 Not Found\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
+            "Content-Type: text/html\r\n"
+            "Content-Length: 45\r\n"
+            "Connection: close\r\n\r\n"
+            "<html><body><h1>404 Not Found</h1></body></html>";
     } else {
-        std::ifstream errorFile("/Users/mackenzieturner/Desktop/DESKTOP/Hydrogen/aether/aether/templates/error.html");
-        std::stringstream buffer;
-        buffer << errorFile.rdbuf();
-        std::string errorHtml = buffer.str();
+        // Generate a simple error page without external files
+        std::string errorHtml = "<html><body><h1>Error " + std::to_string(statusCode) + "</h1><p>An error occurred while processing your request.</p></body></html>";
 
         std::ostringstream oss;
         oss << "HTTP/1.1 " << statusCode << " " << HttpParser::statusText(statusCode) << "\r\n";

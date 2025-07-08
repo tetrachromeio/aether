@@ -1,3 +1,21 @@
 {
-    "aeon_path": "/Volumes/external/lang/aether/"
+    "aeon_path": "/Volumes/external/lang/aether/",
+    "aeon_config": {
+        "version": "0.5.0",
+        "settings": {
+            "language": "en",
+            "theme": "dark",
+            "notifications": true,
+            "auto_update": true
+        },
+        "features": {
+            "search_enabled": true,
+            "sync_enabled": false,
+            "backup_enabled": true
+        },
+        "user_preferences": {
+            "font_size": 14,
+            "show_tutorials": false
+        }
+    }
 }

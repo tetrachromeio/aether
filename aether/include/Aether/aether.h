@@ -9,6 +9,7 @@
 #include "Aether/Http/Server.h"
 #include "Aether/Http/Request.h"
 #include "Aether/Http/Response.h"
+#include "Aether/Http/Router.h"
 #include "Aether/Http/HttpParser.h"
 #include "Aether/Http/Connection.h"
 #include "Aether/Http/Middleware.h"

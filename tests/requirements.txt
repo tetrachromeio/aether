@@ -1,0 +1,18 @@
+# Test Requirements
+# Install these packages for full test functionality
+
+# Core testing (included in Python standard library)
+# unittest
+# tempfile
+# pathlib
+# unittest.mock
+
+# Optional for coverage reporting
+coverage>=6.0
+
+# Required by Aeon (from setup.py)
+toml>=0.10.0
+tqdm>=4.60.0
+requests>=2.25.0
+gitpython>=3.1.0
+tomlkit>=0.7.0

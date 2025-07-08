@@ -10,7 +10,9 @@ namespace Http {
 std::string HttpParser::statusText(int statusCode) {
     static const std::unordered_map<int, std::string> texts = {
         {200, "OK"},
+        {201, "Created"},
         {400, "Bad Request"},
+        {401, "Unauthorized"},
         {404, "Not Found"},
         {500, "Internal Server Error"}
     };
@@ -58,7 +60,11 @@ bool HttpParser::parseHeaders(const std::string& headerBlock, Request& req) {
         if (colon != std::string::npos) {
             std::string key = line.substr(0, colon);
             std::string value = line.substr(colon + 1);
-            value.erase(0, value.find_first_not_of(' '));
+            
+            // Remove leading and trailing whitespace (including \r)
+            value.erase(0, value.find_first_not_of(" \t\r\n"));
+            value.erase(value.find_last_not_of(" \t\r\n") + 1);
+            
             req.headers[key] = value;
         }
     }

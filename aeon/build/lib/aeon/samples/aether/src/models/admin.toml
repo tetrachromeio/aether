@@ -1,0 +1,34 @@
+[model]
+name = "Admin"
+table = "admins"
+
+[fields.id]
+type = "int"
+primary_key = true
+auto_increment = true
+
+[fields.username]
+type = "string"
+unique = true
+nullable = false
+
+[fields.email]
+type = "string"
+unique = true
+nullable = false
+
+[fields.password_hash]
+type = "string"
+nullable = false
+
+[fields.role]
+type = "string"
+default = "user"
+
+[fields.active]
+type = "bool"
+default = true
+
+[fields.created_at]
+type = "datetime"
+default = "now"

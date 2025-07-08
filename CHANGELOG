@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] Beta
+### Added
+- Comprehensive test suite with 80%+ coverage target
+- Test runner with coverage reporting support
+- Integration tests for complete workflows
+- Unit tests for all core functionality
+
+### Changed
+- Standardized version numbers across all files to 0.5.0
+- Updated project status from Alpha to Beta
+- Improved error handling with proper HTTP status codes
+
+### Fixed
+- Removed hardcoded absolute file paths from production code
+- Fixed error page generation to use embedded HTML instead of external files
+- Improved 404 handling for unmatched routes
+
+### Removed
+- Incomplete `aeon add` command functionality
+- References to package registry features (moved to v1.0.0)
+- Hardcoded development paths in Connection.cpp
+
 ## [0.0.2] Alpha
 
 

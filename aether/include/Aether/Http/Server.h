@@ -19,6 +19,7 @@ namespace Aether {
 namespace Http {
 
 class Connection; // Forward declaration
+class Router; // Forward declaration
 
 using RequestHandler = std::function<void(Request&, Response&)>;
 

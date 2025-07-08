@@ -1,49 +1,33 @@
 import os
+import shutil
+import toml
 from aeon.utils.file_utils import create_directory, write_file
+import importlib.resources as pkg_resources
+import aeon
 
-def new_project(project_name):
-    # Create project directory
-    project_dir = os.path.join(os.getcwd(), project_name)
-    create_directory(project_dir)
+def new_project(project_name, template="blank"):
+    current_dir = os.getcwd()
+    project_dir = os.path.join(current_dir, project_name)
+    package_root = os.path.dirname(aeon.__file__)
+    template_dir = os.path.join(package_root, "samples", template)
 
-    # Create subdirectories
-    include_dir = os.path.join(project_dir, "Include")
-    src_dir = os.path.join(project_dir, "src")
-    create_directory(include_dir)
-    create_directory(src_dir)
+    if not os.path.isdir(template_dir):
+        raise FileNotFoundError(f"Template '{template}' not found in aeon/samples/")
 
-    # Create aeon.toml
-    toml_content = f"""
-[project]
-name = "{project_name}"
-version = "1.0.0"
-description = "A new aeon project"
-"""
-    write_file(os.path.join(project_dir, "aeon.toml"), toml_content)
+    # Copy template to new project directory
+    shutil.copytree(template_dir, project_dir)
 
-    # Create main.cpp
-    main_cpp_content = """
-#include "Aether/aether.h"
+    # Load and modify aeon.toml
+    aeon_toml_path = os.path.join(project_dir, "aeon.toml")
+    if not os.path.isfile(aeon_toml_path):
+        raise FileNotFoundError("aeon.toml missing in the template.")
 
-using namespace Aether; // Bring aeon into scope
-using namespace Aether::Http;
+    with open(aeon_toml_path, "r") as f:
+        toml_data = toml.load(f)
 
-int main() {
-    print("Starting aeon server..."); // Use print directly
+    toml_data["project"]["name"] = project_name
 
-    auto app = Server();
+    with open(aeon_toml_path, "w") as f:
+        toml.dump(toml_data, f)
 
-    // GET request handler
-    app.get("/", [](Request& req, Response& res) {
-        print("Handling GET request for /"); // Use print directly
-        res.send("Hello from aeon!");
-    });
-
-    app.run(3000); // Start the server on port 3000
-    
-    return 0;
-}
-"""
-    write_file(os.path.join(src_dir, "main.cpp"), main_cpp_content)
-
-    print(f"Created new project: {project_name}")
+    print(f"Created new project: {project_name} using template: {template}")
