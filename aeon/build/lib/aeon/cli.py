@@ -1,5 +1,5 @@
 import argparse
-from aeon.commands import new_project, build_project, run_project, link_aeon, makemigrations, migrate, install
+from aeon.commands import new_project, build_project, run_project, link_aeon, makemigrations, migrate
 from aeon.commands.build import clean_build
 from aeon.commands.dev import dev_server
 from aeon.commands.deps import show_system_dependencies, check_system_dependencies
@@ -35,16 +35,16 @@ def main():
     # aeon migrate
     subparsers.add_parser("migrate", help="Apply migrations to the database")
 
-    # aeon install <package_id> <version>
-    install_parser = subparsers.add_parser("install", help="Install one or more packages")
-    install_parser.add_argument("packages", nargs="+", help="Packages to install (e.g., user/package@1.0.0)")
-    install_parser.set_defaults(func=install)
-
     # aeon deps
     deps_parser = subparsers.add_parser("deps", help="Manage system dependencies")
     deps_subparsers = deps_parser.add_subparsers(dest="deps_command", help="Dependencies commands")
     deps_subparsers.add_parser("show", help="Show system dependencies configuration")
     deps_subparsers.add_parser("check", help="Check if system dependencies can be resolved")
+
+    #superuser creation command
+    subparsers.add_parser("createsuperuser", help="Create a superuser for the application")
+    from aeon.commands.createsuperuser import create_superuser
+                    
 
     args = parser.parse_args()
 
@@ -64,8 +64,6 @@ def main():
         makemigrations()
     elif args.command == "migrate":
         migrate()
-    elif args.command == "install":
-        install(args.packages)
     elif args.command == "deps":
         if args.deps_command == "show":
             show_system_dependencies()
@@ -73,6 +71,8 @@ def main():
             check_system_dependencies()
         else:
             deps_parser.print_help()
+    elif args.command == "createsuperuser":
+        create_superuser()
     else:
         parser.print_help()
 

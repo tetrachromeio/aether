@@ -26,14 +26,14 @@ std::string sha256_hash(const std::string& input) {
 }
 
 int main() {
-    print("Starting Aether server with OpenSSL integration..."); // Use print directly
+    print("Starting Aether server with OpenSSL and NeuralDB integration...");
 
-    // Create the HTTP server
+    // Create the HTTP/NeuralDB server
     auto app = Server();
 
     // HTTP request handlers
     app.get("/", [](Request& req, Response& res) {
-        print("Handling GET request for /"); // Use print directly
+        print("Handling GET request for /");
         res.send("Hello from aeon with OpenSSL support!");
     });
 
@@ -41,7 +41,6 @@ int main() {
         res.send("User ID: " + req.params["id"]);
     });
 
-    // New endpoint that demonstrates OpenSSL usage
     app.get("/hash/:text", [](auto& req, auto& res) {
         std::string text = req.params["text"];
         std::string hash = sha256_hash(text);
@@ -51,6 +50,9 @@ int main() {
     app.get("/files/*path", [](auto& req, auto& res) {
         res.sendFile("/Volumes/external/Package/aether/sample/public/" + req.params["path"]);
     });
+
+    // Start the NeuralDB protocol listener on port 7654 (default)
+    app.neural(7654);
 
     // Start the HTTP server on port 3000
     app.run(3000);

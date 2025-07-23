@@ -41,6 +41,11 @@ def main():
     deps_subparsers.add_parser("show", help="Show system dependencies configuration")
     deps_subparsers.add_parser("check", help="Check if system dependencies can be resolved")
 
+    #superuser creation command
+    subparsers.add_parser("createsuperuser", help="Create a superuser for the application")
+    from aeon.commands.createsuperuser import create_superuser
+                    
+
     args = parser.parse_args()
 
     if args.command == "new":
@@ -66,6 +71,8 @@ def main():
             check_system_dependencies()
         else:
             deps_parser.print_help()
+    elif args.command == "createsuperuser":
+        create_superuser()
     else:
         parser.print_help()
 

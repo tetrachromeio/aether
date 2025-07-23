@@ -14,6 +14,33 @@ struct Request {
     std::unordered_map<std::string, std::string> headers; // Request headers
     std::unordered_map<std::string, std::string> params; // URL parameters
     std::string body; // Request body
+    // we need req.getURL();
+    std::string getUrl() const {
+        return path + (params.empty() ? "" : "?" + paramsToString());
+    }
+    // we need a way to ger the domain
+    std::string getDomain() const {
+        // should it ger from headers or be set separately?
+        auto it = headers.find("Host");
+        if (it != headers.end()) {
+            return it->second;
+        }
+        return ""; // Default case if Host header is not found
+    }
+
+    
+    private:
+        std::string paramsToString() const {
+            std::string result;
+            for (auto it = params.begin(); it != params.end(); ++it) {
+                if (it != params.begin()) {
+                    result += "&";
+                }
+                result += it->first + "=" + it->second;
+            }
+            return result;
+        }
+
 };
 
 } // namespace Http

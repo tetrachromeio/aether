@@ -1,6 +1,7 @@
 // Server.cpp
 #include "Aether/Http/Server.h"
 #include "Aether/Http/Connection.h"
+#include "Aether/NeuralDb/NeuralDbServer.h"
 
 namespace Aether {
 namespace Http {
@@ -55,6 +56,27 @@ void Server::run(int port) {
     } catch (const std::exception& e) {
         // Handle error
     }
+}
+
+void Server::neural(int port) {
+    if (neuraldbRunning_) return;
+    neuraldbRunning_ = true;
+    // Use the same io_context as HTTP server
+    auto handler = [this](Aether::NeuralDb::Opcode opcode, const std::vector<uint8_t>& payload, std::vector<uint8_t>& response) {
+        // Example: handle PING and QUERY opcodes
+        if (opcode == Aether::NeuralDb::Opcode::PING) {
+            response = {'O','K'};
+        } else if (opcode == Aether::NeuralDb::Opcode::QUERY) {
+            // Echo payload for now
+            response = payload;
+        } else {
+            response = {'E','R','R'};
+        }
+    };
+    neuraldbServer_ = std::make_unique<Aether::NeuralDb::NeuralDbServer>(port, handler);
+    neuraldbThread_ = std::thread([this]() {
+        neuraldbServer_->start();
+    });
 }
 
 RequestHandler Server::findHandler(const std::string& method, const std::string& path, Request& req) {

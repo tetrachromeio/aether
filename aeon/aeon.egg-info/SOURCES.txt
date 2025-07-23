@@ -11,7 +11,9 @@ aeon.egg-info/requires.txt
 aeon.egg-info/top_level.txt
 aeon/commands/__init__.py
 aeon/commands/build.py
+aeon/commands/build_new.py
 aeon/commands/build_old.py
+aeon/commands/createsuperuser.py
 aeon/commands/deps.py
 aeon/commands/dev.py
 aeon/commands/install.py
@@ -20,6 +22,7 @@ aeon/commands/makemigrations.py
 aeon/commands/migrate.py
 aeon/commands/new.py
 aeon/commands/run.py
+aeon/samples/.DS_Store
 aeon/samples/aether/aeon.toml
 aeon/samples/aether/src/main.cpp
 aeon/samples/aether/src/models/admin.toml

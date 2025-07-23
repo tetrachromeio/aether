@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from aeon.utils.config_utils import read_global_config
+from aeon.utils.system_deps import SystemDependencyManager
 from .build import get_file_hash, load_build_cache, save_build_cache, needs_rebuild, compile_source_file
 
 class DevServer:
@@ -105,6 +106,16 @@ class DevServer:
             print("❌ aeon.toml not found!")
             return None
 
+        # Initialize system dependency manager
+        system_dep_manager = SystemDependencyManager()
+        system_dep_manager.set_cache_dir(build_dir)
+        
+        # Process system dependencies
+        system_flags = {"include_flags": [], "lib_flags": [], "lib_dirs": []}
+        if "systemDependencies" in config:
+            print("🔧 Processing system dependencies...")
+            system_flags = system_dep_manager.get_compilation_flags(config["systemDependencies"])
+
         # Read global config for aeon path
         global_config = read_global_config()
         if not global_config or "aeon_path" not in global_config:
@@ -176,7 +187,7 @@ class DevServer:
             # Only compile Aether files if they've changed
             if needs_rebuild(source_file, object_file, aether_cache, package_includes):
                 print(f"🔨 Compiling Aether core: {source_file.name}")
-                if not compile_source_file(source_file, object_file, package_includes):
+                if not compile_source_file(source_file, object_file, package_includes, system_flags):
                     return None
                 aether_files_compiled += 1
                 
@@ -209,7 +220,7 @@ class DevServer:
             
             # Always check project files for changes
             if needs_rebuild(source_file, object_file, build_cache, package_includes):
-                if not compile_source_file(source_file, object_file, package_includes):
+                if not compile_source_file(source_file, object_file, package_includes, system_flags):
                     return None
                 project_files_compiled += 1
             
@@ -234,9 +245,19 @@ class DevServer:
             "-std=c++17",
             *[str(obj) for obj in all_object_files if obj.exists()],
             "-o", str(executable),
+        ]
+        
+        # Add system dependency library directories and flags
+        if system_flags["lib_dirs"]:
+            link_command.extend(system_flags["lib_dirs"])
+        if system_flags["lib_flags"]:
+            link_command.extend(system_flags["lib_flags"])
+        
+        # Add default libraries
+        link_command.extend([
             "-lboost_system",
             "-pthread"
-        ]
+        ])
         
         result = subprocess.run(link_command, capture_output=True, text=True)
         if result.returncode != 0:

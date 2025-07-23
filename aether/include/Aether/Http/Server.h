@@ -7,6 +7,7 @@
 #include "Aether/Http/Response.h"
 #include "Aether/Http/Middleware.h"
 #include "Aether/Http/RoutePattern.h"
+#include "Aether/NeuralDb/NeuralDbServer.h"
 #include <boost/asio.hpp>
 #include <functional>
 #include <unordered_map>
@@ -40,6 +41,9 @@ public:
     void use(Middleware middleware);
     void run(int port);
 
+    // Start NeuralDB protocol listener
+    void neural(int port = 7654);
+
     // Add views method
     void views(const std::string& folder);
 
@@ -72,6 +76,11 @@ private:
 
     // Add views folder path
     std::string viewsFolder_;
+
+    // NeuralDB server instance
+    std::unique_ptr<Aether::NeuralDb::NeuralDbServer> neuraldbServer_;
+    std::thread neuraldbThread_;
+    std::atomic<bool> neuraldbRunning_{false};
 };
 
 } // namespace Http

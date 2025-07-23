@@ -7,9 +7,8 @@ from .run import run_project
 from .link import link_aeon
 from .makemigrations import makemigrations
 from .migrate import migrate
-from .install import install
 from .dev import dev_server
 
 
 # Optional: Define a list of available commands
-__all__ = ["new_project", "build_project", "run_project", "link_aeon", "makemigrations", "migrate","install", "dev_server"]
+__all__ = ["new_project", "build_project", "run_project", "link_aeon", "makemigrations", "migrate", "dev_server"]

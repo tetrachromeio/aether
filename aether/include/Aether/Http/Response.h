@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <fstream>
 #include <sstream>
+#include <regex>
+#include "Aether/Core/json.hpp"
 
 namespace Aether {
 namespace Http {
@@ -35,16 +37,123 @@ struct Response {
         this->statusCode = statusCode;
     }
 
-    void render(const std::string& viewName) {
+    void render(const std::string& viewName, const nlohmann::json& data = {}) {
         std::string filePath = viewsFolder_ + "/" + viewName + ".html";
         std::ifstream file(filePath);
-        if (file.is_open()) {
-            std::ostringstream buffer;
-            buffer << file.rdbuf();
-            send(buffer.str());
-        } else {
+        if (!file.is_open()) {
             send("404 Not Found", 404);
+            return;
         }
+        std::ostringstream buffer;
+        buffer << file.rdbuf();
+        std::string html = buffer.str();
+        // 1. Handle {{#if key}} ... {{else}} ... {{/if}}
+        {
+            std::regex if_regex(R"(\{\{#if ([a-zA-Z0-9_\.]+)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\})");
+            std::smatch m;
+            std::string processed;
+            std::string::const_iterator searchStart(html.cbegin());
+            while (std::regex_search(searchStart, html.cend(), m, if_regex)) {
+                processed.append(searchStart, m[0].first);
+                std::string key = m[1].str();
+                std::string if_block = m[2].str();
+                std::string else_block = m.size() > 3 ? m[3].str() : "";
+                nlohmann::json val = data;
+                size_t pos = 0;
+                std::string keyCopy = key;
+                while ((pos = keyCopy.find('.')) != std::string::npos) {
+                    val = val[keyCopy.substr(0, pos)];
+                    keyCopy = keyCopy.substr(pos + 1);
+                }
+                bool cond = false;
+                if (val.contains(keyCopy)) {
+                    if (val[keyCopy].is_boolean()) cond = val[keyCopy].get<bool>();
+                    else cond = !val[keyCopy].empty();
+                }
+                processed += cond ? if_block : else_block;
+                searchStart = m[0].second;
+            }
+            processed.append(searchStart, html.cend());
+            html = processed;
+        }
+        // 2. Handle {{#each key}} ... {{/each}}
+        {
+            std::regex each_regex(R"(\{\{#each ([a-zA-Z0-9_\.]+)\}\}([\s\S]*?)\{\{\/each\}\})");
+            std::smatch m;
+            std::string processed;
+            std::string::const_iterator searchStart(html.cbegin());
+            while (std::regex_search(searchStart, html.cend(), m, each_regex)) {
+                processed.append(searchStart, m[0].first);
+                std::string key = m[1].str();
+                std::string block = m[2].str();
+                nlohmann::json val = data;
+                size_t pos = 0;
+                std::string keyCopy = key;
+                while ((pos = keyCopy.find('.')) != std::string::npos) {
+                    val = val[keyCopy.substr(0, pos)];
+                    keyCopy = keyCopy.substr(pos + 1);
+                }
+                std::string result;
+                if (val.contains(keyCopy) && val[keyCopy].is_array()) {
+                    for (const auto& item : val[keyCopy]) {
+                        std::string item_block = block;
+                        // Replace {{this}} with item value (string or dump)
+                        std::regex this_regex(R"(\{\{this\}\})");
+                        if (item.is_string()) {
+                            item_block = std::regex_replace(item_block, this_regex, item.get<std::string>());
+                        } else if (item.is_object()) {
+                            // Replace {{key}} inside block with item[key]
+                            std::regex inner_var_regex(R"(\{\{([a-zA-Z0-9_]+)\}\})");
+                            std::smatch m2;
+                            std::string item_processed;
+                            std::string::const_iterator item_search(item_block.cbegin());
+                            while (std::regex_search(item_search, item_block.cend(), m2, inner_var_regex)) {
+                                item_processed.append(item_search, m2[0].first);
+                                std::string k = m2[1].str();
+                                if (item.contains(k))
+                                    item_processed += item[k].is_string() ? item[k].get<std::string>() : item[k].dump();
+                                item_search = m2[0].second;
+                            }
+                            item_processed.append(item_search, item_block.cend());
+                            item_block = item_processed;
+                        } else {
+                            item_block = std::regex_replace(item_block, this_regex, item.dump());
+                        }
+                        result += item_block;
+                    }
+                }
+                processed += result;
+                searchStart = m[0].second;
+            }
+            processed.append(searchStart, html.cend());
+            html = processed;
+        }
+
+        // 3. Replace {{key}} with value from data (after blocks)
+        {
+            std::regex var_regex(R"(\{\{([a-zA-Z0-9_\.]+)\}\})");
+            std::smatch m;
+            std::string processed;
+            std::string::const_iterator searchStart(html.cbegin());
+            while (std::regex_search(searchStart, html.cend(), m, var_regex)) {
+                processed.append(searchStart, m[0].first);
+                std::string key = m[1].str();
+                nlohmann::json val = data;
+                size_t pos = 0;
+                std::string keyCopy = key;
+                while ((pos = keyCopy.find('.')) != std::string::npos) {
+                    val = val[keyCopy.substr(0, pos)];
+                    keyCopy = keyCopy.substr(pos + 1);
+                }
+                if (val.contains(keyCopy))
+                    processed += val[keyCopy].is_string() ? val[keyCopy].get<std::string>() : val[keyCopy].dump();
+                searchStart = m[0].second;
+            }
+            processed.append(searchStart, html.cend());
+            html = processed;
+        }
+
+        send(html);
     }
 
     void sendFile(const std::string& filePath) {

@@ -4,6 +4,10 @@
 // Core components
 #include "Aether/Core/EventLoop.h"
 #include "Aether/Core/Print.h"
+#include "Aether/Core/Config.h"
+#include "Aether/Core/Logger.h"
+#include "Aether/Core/json.hpp"
+
 
 // HTTP components
 #include "Aether/Http/Server.h"
@@ -16,6 +20,10 @@
 
 // Middleware components
 #include "Aether/Middleware/ServeStatic.h"
+
+// NeuralDb protocol
+#include "Aether/NeuralDb/NeuralDbServer.h"
+
 
 
 #endif // Aether_H
