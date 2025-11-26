@@ -1,6 +1,8 @@
 #include "Aether/Http/Connection.h"
 #include "Aether/Http/HttpParser.h"
 #include <iostream>
+#include <cctype>
+#include <chrono>
 
 namespace Aether {
 namespace Http {
@@ -15,13 +17,22 @@ Connection::Connection(
     handlerLookup_(handlerLookup),
     middlewareStack_(middlewareStack),
     cleanupCallback_(cleanupCallback),
-    isClosed_(false) {} // Initialize isClosed_ to false
+    requestBuffer_(),
+    responseData_(),
+    req_(),
+    res_(),
+    isClosed_(false),
+    totalBodyBytes_(0) { // Initialize isClosed_ to false
+    boost::system::error_code ec;
+    socket_.set_option(boost::asio::ip::tcp::no_delay(true), ec);
+}
 
 void Connection::start() {
     resetTimeout();
     requestBuffer_.clear();
     req_ = Request{};
     res_ = Response{};
+    totalBodyBytes_ = 0;
     
     boost::asio::async_read_until(
         socket_,
@@ -37,6 +48,7 @@ void Connection::handleReadHeaders(
     const boost::system::error_code& error, 
     size_t bytes_transferred
 ) {
+    (void)bytes_transferred;
     if (error) {
         handleNetworkError(error);
         return;
@@ -48,25 +60,33 @@ void Connection::handleReadHeaders(
         return;
     }
 
+    // Remove headers from buffer so only the body remains
+    std::size_t headerEnd = requestBuffer_.find("\r\n\r\n");
+    if (headerEnd != std::string::npos) {
+        requestBuffer_.erase(0, headerEnd + 4);
+    }
+
     // Validate Host header (required for HTTP/1.1)
-    if (!req_.headers.count("Host")) {
+    const auto hostIt = req_.headers.find("host");
+    if (req_.version == "HTTP/1.1" && hostIt == req_.headers.end()) {
         sendError(400); // Bad Request: Host header is required
         return;
     }
 
     // Handle Expect: 100-continue
-    if (req_.headers.count("Expect") && req_.headers["Expect"] == "100-continue") {
+    auto expectIt = req_.headers.find("expect");
+    if (expectIt != req_.headers.end() && iequals(expectIt->second, "100-continue")) {
         send100Continue();
         return; // Wait for the client to send the body
     }
 
     // Handle request body
-    const bool hasBody = req_.headers.count("Content-Length");
-    const bool chunked = req_.headers.count("Transfer-Encoding") && 
-                         req_.headers["Transfer-Encoding"] == "chunked";
+    const bool hasBody = req_.headers.count("content-length");
+    const bool chunked = req_.headers.count("transfer-encoding") && 
+                         iequals(req_.headers.at("transfer-encoding"), "chunked");
 
     if (hasBody) {
-        handleContentLengthBody(bytes_transferred);
+        handleContentLengthBody();
     } else if (chunked) {
         handleChunkedBody();
     } else {
@@ -94,12 +114,12 @@ void Connection::send100Continue() {
 
 
 void Connection::handleRequestBody() {
-    const bool hasBody = req_.headers.count("Content-Length");
-    const bool chunked = req_.headers.count("Transfer-Encoding") && 
-                         req_.headers["Transfer-Encoding"] == "chunked";
+    const bool hasBody = req_.headers.count("content-length");
+    const bool chunked = req_.headers.count("transfer-encoding") && 
+                         iequals(req_.headers.at("transfer-encoding"), "chunked");
 
     if (hasBody) {
-        handleContentLengthBody(0); // Start reading the body
+        handleContentLengthBody(); // Start reading the body
     } else if (chunked) {
         handleChunkedBody(); // Start reading the chunked body
     } else {
@@ -107,10 +127,25 @@ void Connection::handleRequestBody() {
     }
 }
 
-void Connection::handleContentLengthBody(size_t header_bytes) {
+void Connection::handleContentLengthBody() {
     try {
-        size_t content_length = std::stoul(req_.headers["Content-Length"]);
-        size_t remaining = content_length - (requestBuffer_.size() - header_bytes - 4);
+        const auto& headerVal = req_.headers.at("content-length");
+        std::size_t content_length = std::stoull(headerVal);
+
+        if (exceedsBodyLimit(0, content_length)) {
+            sendError(413);
+            return;
+        }
+
+        std::size_t alreadyBuffered = requestBuffer_.size();
+
+        if (alreadyBuffered > content_length) {
+            sendError(400);
+            return;
+        }
+
+        totalBodyBytes_ = content_length;
+        std::size_t remaining = content_length - alreadyBuffered;
 
         if (remaining > 0) {
             boost::asio::async_read(
@@ -150,13 +185,23 @@ void Connection::handleChunkedBody() {
 }
 
 void Connection::processChunkedBody(size_t bytes_transferred) {
-    size_t chunkSize;
-    std::istringstream iss(requestBuffer_.substr(0, bytes_transferred));
-    iss >> std::hex >> chunkSize;
+    const std::string sizeLine = requestBuffer_.substr(0, bytes_transferred);
+    std::size_t chunkSize = 0;
+    try {
+        chunkSize = std::stoul(sizeLine, nullptr, 16);
+    } catch (const std::exception&) {
+        sendError(400);
+        return;
+    }
 
     if (chunkSize == 0) {
         // End of chunks
         processRequest();
+        return;
+    }
+
+    if (exceedsBodyLimit(totalBodyBytes_, chunkSize)) {
+        sendError(413);
         return;
     }
 
@@ -175,6 +220,7 @@ void Connection::processChunkedBody(size_t bytes_transferred) {
             // Append chunk data to body
             self->req_.body.append(self->requestBuffer_.substr(0, chunkSize));
             self->requestBuffer_.erase(0, chunkSize + 2); // Remove chunk data and \r\n
+            self->totalBodyBytes_ += chunkSize;
 
             // Read the next chunk
             self->handleChunkedBody();
@@ -211,28 +257,37 @@ void Connection::processRequest() {
 }
 
 void Connection::buildResponse() {
-    std::ostringstream oss;
-    
-    // Status line
-    oss << req_.version << " " 
-        << res_.statusCode << " "
-        << HttpParser::statusText(res_.statusCode) << "\r\n";
+    const bool keep_alive = isKeepAliveRequested();
+    std::string statusText = HttpParser::statusText(res_.statusCode);
 
-    // Headers
-    oss << "Content-Length: " << res_.body.size() << "\r\n";
-    
-    // Connection management
-    bool keep_alive = (req_.version == "HTTP/1.1") || 
-                     (req_.headers["Connection"] == "keep-alive");
-    oss << "Connection: " << (keep_alive ? "keep-alive" : "close") << "\r\n";
+    responseData_.clear();
+    // Reserve to minimize reallocations: status line + headers + body
+    responseData_.reserve(res_.body.size() + statusText.size() + 64 + res_.headers.size() * 32);
 
-    // Custom headers
+    responseData_.append(req_.version);
+    responseData_.push_back(' ');
+    responseData_.append(std::to_string(res_.statusCode));
+    responseData_.push_back(' ');
+    responseData_.append(statusText);
+    responseData_.append("\r\n");
+
+    responseData_.append("Content-Length: ");
+    responseData_.append(std::to_string(res_.body.size()));
+    responseData_.append("\r\n");
+
+    responseData_.append("Connection: ");
+    responseData_.append(keep_alive ? "keep-alive" : "close");
+    responseData_.append("\r\n");
+
     for (const auto& [key, value] : res_.headers) {
-        oss << key << ": " << value << "\r\n";
+        responseData_.append(key);
+        responseData_.append(": ");
+        responseData_.append(value);
+        responseData_.append("\r\n");
     }
 
-    oss << "\r\n" << res_.body;
-    responseData_ = oss.str();
+    responseData_.append("\r\n");
+    responseData_.append(res_.body);
 }
 
 void Connection::sendResponse() {
@@ -246,8 +301,7 @@ void Connection::sendResponse() {
             }
             
             // Handle keep-alive
-            bool keep_alive = self->responseData_.find("Connection: keep-alive") != std::string::npos;
-            if (keep_alive) {
+            if (self->isKeepAliveRequested()) {
                 self->start(); // Reset for next request
             } else {
                 self->closeConnection();
@@ -304,7 +358,7 @@ void Connection::sendError(int statusCode) {
 
 
 void Connection::resetTimeout() {
-    timeoutTimer_.expires_from_now(boost::posix_time::seconds(30)); // 30-second timeout
+    timeoutTimer_.expires_after(std::chrono::seconds(30)); // 30-second timeout
     timeoutTimer_.async_wait([self = shared_from_this()](auto error) {
         if (!error) {
             self->closeConnection();
@@ -337,6 +391,38 @@ void Connection::closeConnection() {
     }
 
     cleanupCallback_();
+}
+
+bool Connection::isKeepAliveRequested() const {
+    return wantsKeepAlive(req_);
+}
+
+bool Connection::wantsKeepAlive(const Request& req) {
+    bool keepAlive = req.version == "HTTP/1.1";
+    auto it = req.headers.find("connection");
+    if (it != req.headers.end()) {
+        const std::string& value = it->second;
+        if (iequals(value, "close")) {
+            keepAlive = false;
+        } else if (iequals(value, "keep-alive")) {
+            keepAlive = true;
+        }
+    }
+    return keepAlive;
+}
+
+bool Connection::exceedsBodyLimit(std::size_t currentBytes, std::size_t incomingBytes) {
+    return incomingBytes > kMaxBodySizeBytes || currentBytes > kMaxBodySizeBytes ||
+           (incomingBytes > 0 && currentBytes > kMaxBodySizeBytes - incomingBytes);
+}
+
+bool Connection::iequals(const std::string& a, const std::string& b) {
+    return std::equal(a.begin(), a.end(),
+                      b.begin(), b.end(),
+                      [](char lhs, char rhs) {
+                          return std::tolower(static_cast<unsigned char>(lhs)) ==
+                                 std::tolower(static_cast<unsigned char>(rhs));
+                      });
 }
 
 } // namespace Http

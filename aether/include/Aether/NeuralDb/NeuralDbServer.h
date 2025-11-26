@@ -1,6 +1,12 @@
 #ifndef AETHER_NEURALDB_SERVER_H
 #define AETHER_NEURALDB_SERVER_H
 
+#ifndef BOOST_ERROR_CODE_HEADER_ONLY
+#define BOOST_ERROR_CODE_HEADER_ONLY
+#endif
+#ifndef BOOST_SYSTEM_NO_DEPRECATED
+#define BOOST_SYSTEM_NO_DEPRECATED
+#endif
 #include <boost/asio.hpp>
 #include <thread>
 #include <vector>

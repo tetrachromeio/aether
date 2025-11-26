@@ -8,6 +8,12 @@
 #include "Aether/Http/Middleware.h"
 #include "Aether/Http/RoutePattern.h"
 #include "Aether/NeuralDb/NeuralDbServer.h"
+#ifndef BOOST_ERROR_CODE_HEADER_ONLY
+#define BOOST_ERROR_CODE_HEADER_ONLY
+#endif
+#ifndef BOOST_SYSTEM_NO_DEPRECATED
+#define BOOST_SYSTEM_NO_DEPRECATED
+#endif
 #include <boost/asio.hpp>
 #include <functional>
 #include <unordered_map>

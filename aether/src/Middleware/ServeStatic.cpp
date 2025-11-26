@@ -1,11 +1,14 @@
 #include "Aether/Middleware/ServeStatic.h"
 #include <iostream> // Ensure this is included
+#include <filesystem>
+#include <algorithm>
 
 namespace Aether {
 namespace Http {
 
 Middleware serveStatic(const std::string& basePath) {
-    return [basePath](Request& req, Response& res, Context& context, std::function<void(std::exception_ptr)> next) {
+    const std::filesystem::path canonicalBase = std::filesystem::weakly_canonical(basePath);
+    return [canonicalBase](Request& req, Response& res, Context& context, std::function<void(std::exception_ptr)> next) {
         try {
             // Remove leading '/' from req.path
             std::string requestedPath = req.path;
@@ -14,12 +17,22 @@ Middleware serveStatic(const std::string& basePath) {
             }
 
             // Construct the full file path
-            std::filesystem::path filePath = std::filesystem::path(basePath) / requestedPath;
+            std::filesystem::path filePath = canonicalBase / requestedPath;
+            std::error_code ec;
+            std::filesystem::path resolved = std::filesystem::weakly_canonical(filePath, ec);
+            const bool underBase = std::mismatch(
+                canonicalBase.begin(), canonicalBase.end(), resolved.begin(), resolved.end()
+            ).first == canonicalBase.end();
+
+            if (ec || !underBase) {
+                next(nullptr); // Path traversal or resolution failure
+                return;
+            }
 
             // Check if the file exists and is a regular file
-            if (std::filesystem::exists(filePath) && std::filesystem::is_regular_file(filePath)) {
+            if (std::filesystem::exists(resolved) && std::filesystem::is_regular_file(resolved)) {
                 // Read the file content
-                std::ifstream file(filePath, std::ios::binary);
+                std::ifstream file(resolved, std::ios::binary);
                 if (file) {
                     std::ostringstream buffer;
                     buffer << file.rdbuf();
@@ -27,7 +40,7 @@ Middleware serveStatic(const std::string& basePath) {
 
                     // Set the appropriate content type
                     std::string contentType = "text/plain"; // Default content type
-                    std::string extension = filePath.extension().string();
+                    std::string extension = resolved.extension().string();
                     if (extension == ".html") {
                         contentType = "text/html";
                     } else if (extension == ".css") {

@@ -49,8 +49,9 @@ void Server::run(int port) {
     try {
         boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
         acceptor_.open(endpoint.protocol());
+        acceptor_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
         acceptor_.bind(endpoint);
-        acceptor_.listen();
+        acceptor_.listen(boost::asio::socket_base::max_listen_connections);
         startAccept();
         eventLoop_.keepAlive(); // Block here
     } catch (const std::exception& e) {
@@ -99,8 +100,6 @@ RequestHandler Server::findHandler(const std::string& method, const std::string&
 }
 
 void Server::startAccept() {
-    if (activeConnections_ >= maxConnections_) return;
-
     auto socket = std::make_shared<boost::asio::ip::tcp::socket>(eventLoop_.getIoContext());
     
     acceptor_.async_accept(*socket,
@@ -114,7 +113,11 @@ void Server::handleNewConnection(
     const boost::system::error_code& error,
     std::shared_ptr<boost::asio::ip::tcp::socket> socket
 ) {
-    if (!error && activeConnections_ < maxConnections_) {
+    if (error) {
+        return;
+    }
+
+    if (activeConnections_ < maxConnections_) {
         ++activeConnections_;
         std::make_shared<Connection>(
             std::move(*socket),
@@ -124,8 +127,14 @@ void Server::handleNewConnection(
             middlewareStack_,
             [this] { --activeConnections_; }
         )->start();
-    } else if (socket->is_open()) {
-        socket->close();
+        return;
+    }
+
+    // At capacity: close politely without holding up the accept loop
+    if (socket->is_open()) {
+        boost::system::error_code ec;
+        socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+        socket->close(ec);
     }
 }
 

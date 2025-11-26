@@ -21,7 +21,12 @@ struct Request {
     // we need a way to ger the domain
     std::string getDomain() const {
         // should it ger from headers or be set separately?
-        auto it = headers.find("Host");
+        auto it = headers.find("host");
+        if (it != headers.end()) {
+            return it->second;
+        }
+        // Fallback for older parsers that kept casing
+        it = headers.find("Host");
         if (it != headers.end()) {
             return it->second;
         }

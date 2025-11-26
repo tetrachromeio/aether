@@ -269,7 +269,6 @@ def build_project():
         
         # Add default libraries
         link_command.extend([
-            "-lboost_system",
             "-pthread"
         ])
         

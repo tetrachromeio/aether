@@ -7,6 +7,8 @@
 #include <fstream>
 #include <sstream>
 #include <regex>
+#include <filesystem>
+#include <algorithm>
 #include "Aether/Core/json.hpp"
 
 namespace Aether {
@@ -38,8 +40,24 @@ struct Response {
     }
 
     void render(const std::string& viewName, const nlohmann::json& data = {}) {
-        std::string filePath = viewsFolder_ + "/" + viewName + ".html";
-        std::ifstream file(filePath);
+        std::error_code ec;
+        auto base = std::filesystem::weakly_canonical(viewsFolder_, ec);
+        if (ec) {
+            send("404 Not Found", 404);
+            return;
+        }
+
+        auto candidate = std::filesystem::weakly_canonical(base / (viewName + ".html"), ec);
+        const bool underBase = !ec && std::mismatch(
+            base.begin(), base.end(), candidate.begin(), candidate.end()
+        ).first == base.end();
+
+        if (ec || !underBase) {
+            send("404 Not Found", 404);
+            return;
+        }
+
+        std::ifstream file(candidate);
         if (!file.is_open()) {
             send("404 Not Found", 404);
             return;
@@ -100,7 +118,7 @@ struct Response {
                         // Replace {{this}} with item value (string or dump)
                         std::regex this_regex(R"(\{\{this\}\})");
                         if (item.is_string()) {
-                            item_block = std::regex_replace(item_block, this_regex, item.get<std::string>());
+                            item_block = std::regex_replace(item_block, this_regex, htmlEscape(item.get<std::string>()));
                         } else if (item.is_object()) {
                             // Replace {{key}} inside block with item[key]
                             std::regex inner_var_regex(R"(\{\{([a-zA-Z0-9_]+)\}\})");
@@ -111,13 +129,13 @@ struct Response {
                                 item_processed.append(item_search, m2[0].first);
                                 std::string k = m2[1].str();
                                 if (item.contains(k))
-                                    item_processed += item[k].is_string() ? item[k].get<std::string>() : item[k].dump();
+                                    item_processed += item[k].is_string() ? htmlEscape(item[k].get<std::string>()) : htmlEscape(item[k].dump());
                                 item_search = m2[0].second;
                             }
                             item_processed.append(item_search, item_block.cend());
                             item_block = item_processed;
                         } else {
-                            item_block = std::regex_replace(item_block, this_regex, item.dump());
+                            item_block = std::regex_replace(item_block, this_regex, htmlEscape(item.dump()));
                         }
                         result += item_block;
                     }
@@ -146,7 +164,7 @@ struct Response {
                     keyCopy = keyCopy.substr(pos + 1);
                 }
                 if (val.contains(keyCopy))
-                    processed += val[keyCopy].is_string() ? val[keyCopy].get<std::string>() : val[keyCopy].dump();
+                    processed += val[keyCopy].is_string() ? htmlEscape(val[keyCopy].get<std::string>()) : htmlEscape(val[keyCopy].dump());
                 searchStart = m[0].second;
             }
             processed.append(searchStart, html.cend());
@@ -173,6 +191,24 @@ struct Response {
 
     // Declare the static member variable
     static std::string viewsFolder_;
+
+private:
+    static std::string htmlEscape(const std::string& value) {
+        std::string escaped;
+        escaped.reserve(value.size());
+        for (char c : value) {
+            switch (c) {
+                case '&': escaped += "&amp;"; break;
+                case '<': escaped += "&lt;"; break;
+                case '>': escaped += "&gt;"; break;
+                case '"': escaped += "&quot;"; break;
+                case '\'': escaped += "&#x27;"; break;
+                case '/': escaped += "&#x2F;"; break;
+                default: escaped += c; break;
+            }
+        }
+        return escaped;
+    }
 };
 
 } // namespace Http

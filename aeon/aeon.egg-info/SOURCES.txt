@@ -22,7 +22,6 @@ aeon/commands/makemigrations.py
 aeon/commands/migrate.py
 aeon/commands/new.py
 aeon/commands/run.py
-aeon/samples/.DS_Store
 aeon/samples/aether/aeon.toml
 aeon/samples/aether/src/main.cpp
 aeon/samples/aether/src/models/admin.toml
