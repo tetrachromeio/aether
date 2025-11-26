@@ -12,17 +12,18 @@ Connection::Connection(
     HandlerLookup handlerLookup,
     MiddlewareStack& middlewareStack,
     std::function<void()> cleanupCallback
-) : socket_(std::move(socket)),
-    timeoutTimer_(socket_.get_executor()),
-    handlerLookup_(handlerLookup),
-    middlewareStack_(middlewareStack),
-    cleanupCallback_(cleanupCallback),
-    requestBuffer_(),
-    responseData_(),
-    req_(),
-    res_(),
-    isClosed_(false),
-    totalBodyBytes_(0) { // Initialize isClosed_ to false
+)
+    : socket_(std::move(socket)),
+      timeoutTimer_(socket_.get_executor()),
+      handlerLookup_(std::move(handlerLookup)),
+      middlewareStack_(middlewareStack),
+      cleanupCallback_(std::move(cleanupCallback)),
+      requestBuffer_(),
+      responseData_(),
+      req_(),
+      res_(),
+      isClosed_(false),
+      totalBodyBytes_(0) {
     boost::system::error_code ec;
     socket_.set_option(boost::asio::ip::tcp::no_delay(true), ec);
 }
@@ -33,7 +34,7 @@ void Connection::start() {
     req_ = Request{};
     res_ = Response{};
     totalBodyBytes_ = 0;
-    
+
     boost::asio::async_read_until(
         socket_,
         boost::asio::dynamic_buffer(requestBuffer_),
@@ -45,26 +46,44 @@ void Connection::start() {
 }
 
 void Connection::handleReadHeaders(
-    const boost::system::error_code& error, 
-    size_t bytes_transferred
+    const boost::system::error_code& error,
+    std::size_t bytes_transferred
 ) {
-    (void)bytes_transferred;
     if (error) {
         handleNetworkError(error);
         return;
     }
 
-    // Parse request line and headers
-    if (!HttpParser::parseRequest(requestBuffer_, req_)) {
+    // bytes_transferred is the number of bytes up to and including "\r\n\r\n".
+    // There may already be some body bytes after that in requestBuffer_.
+    if (bytes_transferred > requestBuffer_.size()) {
+        // Should not happen, but guard anyway.
         sendError(400);
         return;
     }
 
-    // Remove headers from buffer so only the body remains
-    std::size_t headerEnd = requestBuffer_.find("\r\n\r\n");
-    if (headerEnd != std::string::npos) {
-        requestBuffer_.erase(0, headerEnd + 4);
+    // Parse request line + headers only from the header portion.
+    std::string_view headerView(requestBuffer_.data(), bytes_transferred);
+    if (!HttpParser::parseRequest(headerView, req_)) {
+        sendError(400);
+        return;
     }
+
+    // Extract any body bytes that arrived in the same read as the headers.
+    const std::size_t extraBodyBytes = requestBuffer_.size() - bytes_transferred;
+    if (extraBodyBytes > 0) {
+        req_.body.assign(
+            requestBuffer_.data() + bytes_transferred,
+            extraBodyBytes
+        );
+        totalBodyBytes_ = extraBodyBytes;
+    } else {
+        req_.body.clear();
+        totalBodyBytes_ = 0;
+    }
+
+    // We no longer need the header bytes in requestBuffer_.
+    requestBuffer_.clear();
 
     // Validate Host header (required for HTTP/1.1)
     const auto hostIt = req_.headers.find("host");
@@ -82,7 +101,7 @@ void Connection::handleReadHeaders(
 
     // Handle request body
     const bool hasBody = req_.headers.count("content-length");
-    const bool chunked = req_.headers.count("transfer-encoding") && 
+    const bool chunked = req_.headers.count("transfer-encoding") &&
                          iequals(req_.headers.at("transfer-encoding"), "chunked");
 
     if (hasBody) {
@@ -90,7 +109,7 @@ void Connection::handleReadHeaders(
     } else if (chunked) {
         handleChunkedBody();
     } else {
-        processRequest();
+        processRequest(); // No body: process immediately
     }
 }
 
@@ -104,18 +123,15 @@ void Connection::send100Continue() {
                 self->handleNetworkError(error);
                 return;
             }
-
             // Wait for the client to send the body
             self->handleRequestBody();
         }
     );
 }
 
-
-
 void Connection::handleRequestBody() {
     const bool hasBody = req_.headers.count("content-length");
-    const bool chunked = req_.headers.count("transfer-encoding") && 
+    const bool chunked = req_.headers.count("transfer-encoding") &&
                          iequals(req_.headers.at("transfer-encoding"), "chunked");
 
     if (hasBody) {
@@ -130,37 +146,43 @@ void Connection::handleRequestBody() {
 void Connection::handleContentLengthBody() {
     try {
         const auto& headerVal = req_.headers.at("content-length");
-        std::size_t content_length = std::stoull(headerVal);
+        const std::size_t content_length = std::stoull(headerVal);
 
-        if (exceedsBodyLimit(0, content_length)) {
-            sendError(413);
-            return;
-        }
-
-        std::size_t alreadyBuffered = requestBuffer_.size();
-
-        if (alreadyBuffered > content_length) {
+        // totalBodyBytes_ currently includes any bytes that arrived with headers
+        if (totalBodyBytes_ > content_length) {
             sendError(400);
             return;
         }
 
-        totalBodyBytes_ = content_length;
-        std::size_t remaining = content_length - alreadyBuffered;
+        const std::size_t remaining = content_length - totalBodyBytes_;
+
+        if (exceedsBodyLimit(totalBodyBytes_, remaining)) {
+            sendError(413); // Payload Too Large
+            return;
+        }
 
         if (remaining > 0) {
+            // Read exactly the remaining bytes into requestBuffer_, then append to req_.body
             boost::asio::async_read(
                 socket_,
                 boost::asio::dynamic_buffer(requestBuffer_),
                 boost::asio::transfer_exactly(remaining),
-                [self = shared_from_this()](auto error, auto) {
+                [self = shared_from_this(), remaining](auto error, auto) {
                     if (error) {
                         self->handleNetworkError(error);
                         return;
                     }
+
+                    // Append newly read body bytes
+                    self->req_.body.append(self->requestBuffer_.data(), remaining);
+                    self->totalBodyBytes_ += remaining;
+                    self->requestBuffer_.clear();
+
                     self->processRequest();
                 }
             );
         } else {
+            // We already have the full body
             processRequest();
         }
     } catch (const std::exception&) {
@@ -169,7 +191,7 @@ void Connection::handleContentLengthBody() {
 }
 
 void Connection::handleChunkedBody() {
-    // Read the first chunk
+    // Read the next chunk size line
     boost::asio::async_read_until(
         socket_,
         boost::asio::dynamic_buffer(requestBuffer_),
@@ -184,7 +206,8 @@ void Connection::handleChunkedBody() {
     );
 }
 
-void Connection::processChunkedBody(size_t bytes_transferred) {
+void Connection::processChunkedBody(std::size_t bytes_transferred) {
+    // bytes_transferred includes the chunk size line + "\r\n"
     const std::string sizeLine = requestBuffer_.substr(0, bytes_transferred);
     std::size_t chunkSize = 0;
     try {
@@ -194,8 +217,11 @@ void Connection::processChunkedBody(size_t bytes_transferred) {
         return;
     }
 
+    // Remove the size line and trailing "\r\n"
+    requestBuffer_.erase(0, bytes_transferred);
+
     if (chunkSize == 0) {
-        // End of chunks
+        // End of chunks: no more data, process the full request
         processRequest();
         return;
     }
@@ -205,21 +231,20 @@ void Connection::processChunkedBody(size_t bytes_transferred) {
         return;
     }
 
-    // Read the chunk data
-    requestBuffer_.erase(0, bytes_transferred + 2); // Remove chunk size line
+    // Read the chunk data (+2 for the trailing "\r\n")
     boost::asio::async_read(
         socket_,
         boost::asio::dynamic_buffer(requestBuffer_),
-        boost::asio::transfer_exactly(chunkSize + 2), // +2 for \r\n
+        boost::asio::transfer_exactly(chunkSize + 2),
         [self = shared_from_this(), chunkSize](auto error, auto) {
             if (error) {
                 self->handleNetworkError(error);
                 return;
             }
 
-            // Append chunk data to body
-            self->req_.body.append(self->requestBuffer_.substr(0, chunkSize));
-            self->requestBuffer_.erase(0, chunkSize + 2); // Remove chunk data and \r\n
+            // Append chunk data (exclude trailing "\r\n")
+            self->req_.body.append(self->requestBuffer_.data(), chunkSize);
+            self->requestBuffer_.erase(0, chunkSize + 2);
             self->totalBodyBytes_ += chunkSize;
 
             // Read the next chunk
@@ -230,13 +255,9 @@ void Connection::processChunkedBody(size_t bytes_transferred) {
 
 void Connection::processRequest() {
     try {
-        // Extract body
-        size_t body_pos = requestBuffer_.find("\r\n\r\n");
-        if (body_pos != std::string::npos) {
-            req_.body = requestBuffer_.substr(body_pos + 4);
-        }
+        // At this point, req_.body already contains the full body (if any).
+        // No need to re-scan or re-parse the buffer for "\r\n\r\n".
 
-        // Execute middleware stack
         middlewareStack_.run(req_, res_, [this]() {
             RequestHandler handler = handlerLookup_(req_.method, req_.path, req_);
             if (handler) {
@@ -246,7 +267,6 @@ void Connection::processRequest() {
                 sendError(404);
             }
         });
-
 
         buildResponse();
         sendResponse();
@@ -262,7 +282,12 @@ void Connection::buildResponse() {
 
     responseData_.clear();
     // Reserve to minimize reallocations: status line + headers + body
-    responseData_.reserve(res_.body.size() + statusText.size() + 64 + res_.headers.size() * 32);
+    responseData_.reserve(
+        res_.body.size() +
+        statusText.size() +
+        64 +
+        res_.headers.size() * 32
+    );
 
     responseData_.append(req_.version);
     responseData_.push_back(' ');
@@ -294,12 +319,12 @@ void Connection::sendResponse() {
     boost::asio::async_write(
         socket_,
         boost::asio::buffer(responseData_),
-        [self = shared_from_this()](auto error, auto bytes_transferred) {
+        [self = shared_from_this()](auto error, auto /*bytes_transferred*/) {
             if (error) {
                 self->handleNetworkError(error);
                 return;
             }
-            
+
             // Handle keep-alive
             if (self->isKeepAliveRequested()) {
                 self->start(); // Reset for next request
@@ -335,7 +360,9 @@ void Connection::sendError(int statusCode) {
             "<html><body><h1>404 Not Found</h1></body></html>";
     } else {
         // Generate a simple error page without external files
-        std::string errorHtml = "<html><body><h1>Error " + std::to_string(statusCode) + "</h1><p>An error occurred while processing your request.</p></body></html>";
+        std::string errorHtml = "<html><body><h1>Error " +
+                                std::to_string(statusCode) +
+                                "</h1><p>An error occurred while processing your request.</p></body></html>";
 
         std::ostringstream oss;
         oss << "HTTP/1.1 " << statusCode << " " << HttpParser::statusText(statusCode) << "\r\n";
@@ -356,7 +383,6 @@ void Connection::sendError(int statusCode) {
     );
 }
 
-
 void Connection::resetTimeout() {
     timeoutTimer_.expires_after(std::chrono::seconds(30)); // 30-second timeout
     timeoutTimer_.async_wait([self = shared_from_this()](auto error) {
@@ -372,18 +398,12 @@ void Connection::closeConnection() {
 
     boost::system::error_code ec;
 
-    // Check if the socket is still open before shutting it down
     if (socket_.is_open()) {
-        // Shutdown the socket gracefully
         socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-        if (ec) {
-            // Log the error only if it's not "not connected"
-            if (ec != boost::asio::error::not_connected) {
-                std::cerr << "Error shutting down socket: " << ec.message() << std::endl;
-            }
+        if (ec && ec != boost::asio::error::not_connected) {
+            std::cerr << "Error shutting down socket: " << ec.message() << std::endl;
         }
 
-        // Close the socket
         socket_.close(ec);
         if (ec) {
             std::cerr << "Error closing socket: " << ec.message() << std::endl;
@@ -412,7 +432,8 @@ bool Connection::wantsKeepAlive(const Request& req) {
 }
 
 bool Connection::exceedsBodyLimit(std::size_t currentBytes, std::size_t incomingBytes) {
-    return incomingBytes > kMaxBodySizeBytes || currentBytes > kMaxBodySizeBytes ||
+    return incomingBytes > kMaxBodySizeBytes ||
+           currentBytes > kMaxBodySizeBytes ||
            (incomingBytes > 0 && currentBytes > kMaxBodySizeBytes - incomingBytes);
 }
 
